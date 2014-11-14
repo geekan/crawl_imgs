@@ -21,8 +21,8 @@ def retrieve(url, path):
             return 'file exists:', url, path
         urllib.urlretrieve(url, path)
         ftype = imghdr.what(path)
-        if ftype != path.split('.')[-1] and path.split('.')[-1] != 'jpg':
-            os.rename(path, path+ftype)
+        if ftype and ftype != path.split('.')[-1] and path.split('.')[-1] != 'jpg':
+            os.rename(path, path+'.'+ftype)
         return 'success:', url, path, ftype
     except Exception as e:
         exception = 'exception: ' + url + ' ' + path + ' | ' + str(e)
