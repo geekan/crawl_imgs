@@ -46,7 +46,7 @@ def main():
     pool = Pool(processes=128)
     exist_file = 0
     socket.setdefaulttimeout(3)
-    with open('urls.log') as f:
+    with open('samples.log') as f:
         for index, line in enumerate(f):
             try:
                 count, url = line.split()
