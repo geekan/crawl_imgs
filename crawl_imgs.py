@@ -67,7 +67,7 @@ def build_proxy():
 files = os.listdir('./imgs')
 def main():
     #build_proxy()
-    pool = Pool(processes=1)
+    pool = Pool(processes=128)
     exist_file = 0
     socket.setdefaulttimeout(3)
     with open('samples.log') as f:
