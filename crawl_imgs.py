@@ -6,7 +6,10 @@ import urllib
 import urllib2
 import socket
 import imghdr
-from multiprocessing import Pool
+import time
+
+
+from multiprocessing import Pool, Queue, Manager, Process
 from urlparse import urlparse
 
 results = []
@@ -23,13 +26,20 @@ def path_exists(path):
             return exist_fname
     return False
 
+def retrieve_from_queue(queue):
+    while 1:
+        url, path = queue.get()
+        retrieve(url, path)
+
 def retrieve(url, path):
     try:
-        print 'retrieve:', url, ' to', path
+        print 'retrieving:', url
         if os.path.exists(path):
-            return 'file exists:', url, path
+            print 'file exists:', url, path
+            return
         elif path_exists(path):
-            return 'similar file:', url, path
+            print 'similar file:', url, path
+            return
 
         # urllib.urlretrieve(url, path)
 
@@ -43,7 +53,7 @@ def retrieve(url, path):
             "If-Modified-Since": "Wed, 06 Aug 2008 23:37:00 GM",
         }
         req = urllib2.Request(url)
-        binary = urllib2.urlopen(req).read()
+        binary = urllib2.urlopen(req, timeout=3).read()
         with open(path, 'w') as f:
             f.write(binary)
 
@@ -52,11 +62,11 @@ def retrieve(url, path):
             os.rename(path, path+'.'+ftype)
         elif ftype is None:
             os.rename(path, path+'.none')
-        return 'success:', url, path, ftype
+        print 'success:', url, path, ftype
     except Exception as e:
         exception = 'exception: ' + url + ' ' + path + ' | ' + str(e)
         exceptions.append(exception)
-        return exception
+        print exception
 
 # Use Proxifier or other global proxy for dynamic proxy
 def build_proxy():
@@ -67,28 +77,46 @@ def build_proxy():
 files = os.listdir('./imgs')
 def main():
     #build_proxy()
-    pool = Pool(processes=128)
+    #pool = Pool(processes=512)
+    #m = Manager()
+    queue = Queue(2048)
+    pool = []*10
+    for i in range(128):
+        p = Process(target=retrieve_from_queue, args=(queue,))
+        p.start()
     exist_file = 0
     socket.setdefaulttimeout(3)
     with open('samples.log') as f:
         for index, line in enumerate(f):
+            if index % 1000 == 0:
+                print index, line
             try:
-                count, url = line.split()
-            except:
-                print 'exception:', count, url
+                args = line.split()
+                if len(args) == 2:
+                    count, url = args
+                else:
+                    count = args[0]
+                    url = ''.join(args[1:])
+            except Exception as e:
+                print 'exception:', str(e), '|', line
                 continue
 
             # print 'main:', count, url
             fname = urlparse(url).path.split('/')[-1]
             path = './imgs/'+str(index)+'.'+count+'.'+fname
 
+            '''
             result = pool.apply_async(
                     retrieve,
-                    args=(url, path),
+                    args=(url, path, queue),
                     callback=callback
             )
+            '''
+            queue.put((url, path))
         print 'apply async done'
-    pool.close()
+    queue.close()
+    queue.join_thread()
+    # pool.close()
     pool.join()
     for e in exceptions:
         print e
