@@ -74,52 +74,51 @@ def build_proxy():
     hk_opener = urllib2.build_opener(hk_proxy)
     urllib2.install_opener(hk_opener)
 
+def process(f, queue):
+    for index, line in enumerate(f):
+        if index < 0:
+            continue
+        if index % 1000 == 0:
+            print index, line
+        try:
+            args = line.split()
+            if len(args) == 2:
+                count, url = args
+            else:
+                count = args[0]
+                url = ''.join(args[1:])
+        except Exception as e:
+            print 'exception:', str(e), '|', line
+            continue
+
+        # print 'main:', count, url
+        fname = urlparse(url).path.split('/')[-1]
+        path = './imgs/'+str(index)+'.'+count+'.'+fname
+
+        '''
+        result = pool.apply_async(
+                retrieve,
+                args=(url, path, queue),
+                callback=callback
+        )
+        '''
+        queue.put((url, path))
+    print 'done processing'
+
 files = os.listdir('./imgs')
 def main():
-    #build_proxy()
-    #pool = Pool(processes=512)
-    #m = Manager()
+    # build_proxy()
     queue = Queue(2048)
-    pool = []*10
     for i in range(128):
-        p = Process(target=retrieve_from_queue, args=(queue,))
-        p.start()
-    exist_file = 0
-    socket.setdefaulttimeout(3)
+        Process(target=retrieve_from_queue, args=(queue,)).start()
+
     with open('samples.log') as f:
-        for index, line in enumerate(f):
-            if index % 1000 == 0:
-                print index, line
-            try:
-                args = line.split()
-                if len(args) == 2:
-                    count, url = args
-                else:
-                    count = args[0]
-                    url = ''.join(args[1:])
-            except Exception as e:
-                print 'exception:', str(e), '|', line
-                continue
+        process(f, queue)
 
-            # print 'main:', count, url
-            fname = urlparse(url).path.split('/')[-1]
-            path = './imgs/'+str(index)+'.'+count+'.'+fname
-
-            '''
-            result = pool.apply_async(
-                    retrieve,
-                    args=(url, path, queue),
-                    callback=callback
-            )
-            '''
-            queue.put((url, path))
-        print 'apply async done'
     queue.close()
     queue.join_thread()
     # pool.close()
     pool.join()
-    for e in exceptions:
-        print e
 
 if __name__ == '__main__':
     main()
